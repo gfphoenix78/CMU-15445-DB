@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <mutex>
 #include <vector>
 #include <string>
 
@@ -17,6 +18,16 @@
 
 namespace cmudb {
 
+template <typename K, typename V>
+struct Bucket {
+	int depth;
+	int len;
+	K *keys;
+	V *values;
+	Bucket(int depth, int max_size);
+	void SafeAppend(const K &key, const V &value);
+	~Bucket();
+};
 template <typename K, typename V>
 class ExtendibleHash : public HashTable<K, V> {
 public:
@@ -34,6 +45,15 @@ public:
   void Insert(const K &key, const V &value) override;
 
 private:
+  void InsertInternal(const K &key, const V &value);
+  void splitLocal(int bucket_id);
+  void splitGlobal(int bucket_id);
+  int BucketID(size_t hash) const;
+  void Expand(int bucket_id);
   // add your own member variables here
+  std::vector<Bucket<K,V>*> buckets;
+  std::mutex mutex;
+  int globalDepth;
+  int maxSize;
 };
 } // namespace cmudb
