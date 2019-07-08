@@ -46,7 +46,29 @@ BufferPoolManager::~BufferPoolManager() {
  * 4. Update page metadata, read page content from disk file and return page
  * pointer
  */
-Page *BufferPoolManager::FetchPage(page_id_t page_id) { return nullptr; }
+Page *BufferPoolManager::FetchPage(page_id_t page_id) {
+  Page *page = nullptr;
+  bool ex, ok;
+  ex = page_table_->Find(page_id, page);
+  if (ex) {
+    // todo: pin page
+    return page;
+  }
+  // not exist, find free-list
+  if (free_list_->size()>0) {
+    page = free_list_->front();
+    free_list_->pop_front();
+    // todo: pin page
+
+
+  } else {
+    // select a victim page to swap
+    ok = replacer_->Victim(page);
+    if (!ok)
+      return nullptr;
+  }
+  return nullptr;
+}
 
 /*
  * Implementation of unpin page
