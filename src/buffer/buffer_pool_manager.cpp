@@ -1,4 +1,5 @@
 #include "buffer/buffer_pool_manager.h"
+#include "common/logger.h"
 
 namespace cmudb {
 
@@ -77,7 +78,19 @@ Page *BufferPoolManager::FetchPage(page_id_t page_id) {
  * dirty flag of this page
  */
 bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
-  return false;
+  Page *page;
+  bool ok;
+  ok = page_table_->Find(page_id, page);
+  if (!ok)
+    return false;
+  assert(page->pin_count_ > 0 && "unpin a page with ref<=0");
+
+  if (--page->pin_count_ == 0) {
+    replacer_->Insert(page);
+  }
+  if (is_dirty)
+    page->is_dirty_ = true;
+  return true;
 }
 
 /*
@@ -86,7 +99,18 @@ bool BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty) {
  * if page is not found in page table, return false
  * NOTE: make sure page_id != INVALID_PAGE_ID
  */
-bool BufferPoolManager::FlushPage(page_id_t page_id) { return false; }
+bool BufferPoolManager::FlushPage(page_id_t page_id) {
+  Page *page;
+  bool ok;
+  ok = page_table_->Find(page_id, page);
+  if (!ok)
+    return false;
+  assert(page->pin_count_ >= 0 && "pin_count < 0");
+  LOG_INFO("pin_count=%d, is_dirty=%s\n", page->pin_count_, page->is_dirty_ ? "true" : "false");
+  disk_manager_->WritePage(page_id, page->GetData());
+  page->is_dirty_ = false;
+  return true;
+}
 
 /**
  * User should call this method for deleting a page. This routine will call
@@ -96,7 +120,15 @@ bool BufferPoolManager::FlushPage(page_id_t page_id) { return false; }
  * call disk manager's DeallocatePage() method to delete from disk file. If
  * the page is found within page table, but pin_count != 0, return false
  */
-bool BufferPoolManager::DeletePage(page_id_t page_id) { return false; }
+bool BufferPoolManager::DeletePage(page_id_t page_id) {
+  // FIXME: todo
+  Page *page;
+  bool ok;
+  ok = page_table_->Find(page_id, page);
+  if (!ok)
+    return true;
+
+}
 
 /**
  * User should call this method if needs to create a new page. This routine
