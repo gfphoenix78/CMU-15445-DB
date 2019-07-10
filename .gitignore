@@ -1,4 +1,5 @@
 # Prerequisites
+.gitignore
 *.d
 
 # Compiled Object files
@@ -32,3 +33,5 @@
 *.app
 
 build
+/.idea
+/cmake-build-debug
